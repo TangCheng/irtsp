@@ -11,7 +11,7 @@ AM_SILENT_RULES([yes])
 
 AC_PROG_CC
 
-
+AC_PROG_CXX
 
 
 
