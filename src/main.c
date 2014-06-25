@@ -17,13 +17,12 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-extern void launch_irtsp_server();
+#include "irtsp.h"
 
 int main()
 {
-	printf("Hello world\n");
-	launch_irtsp_server();
+	IpcamIRtsp *irtsp = g_object_new(IPCAM_TYPE_IRTSP, "name", "irtsp", NULL);
+	ipcam_base_service_start(IPCAM_BASE_SERVICE(irtsp));
 	return (0);
 }
 

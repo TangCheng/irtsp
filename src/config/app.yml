@@ -1,3 +1,5 @@
 token: irtsp_token
 bind:
   irtsp: tcp://127.0.0.1:5000
+connect:
+  iconfig: tcp://127.0.0.1:3000

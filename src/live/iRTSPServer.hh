@@ -26,7 +26,7 @@ public:
     IRTSPServer(Boolean reuseFirstSource = False, Boolean iFramesOnly = False);
     virtual ~IRTSPServer();
     void setAuthUser();
-    void startServer();
+    void startServer(unsigned int port, char *watchVariable);
 };
 
 #endif /* _RTSP_SERVER_HH */
