@@ -18,9 +18,12 @@
  */
 
 #include <stdio.h>
+extern void launch_irtsp_server();
+
 int main()
 {
 	printf("Hello world\n");
+	launch_irtsp_server();
 	return (0);
 }
 

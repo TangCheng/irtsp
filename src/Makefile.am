@@ -20,9 +20,14 @@ bin_PROGRAMS = irtsp
 irtsp_SOURCES = \
 	live/H264LiveStreamSource.cpp \
 	live/H264LiveStreamServerMediaSubsession.cpp \
+	live/iRTSPServer.cpp \
+	live/iRTSPServerLauncher.cpp \
+	irtsp.c \
 	main.c
 
 irtsp_LDFLAGS = 
 
 irtsp_LDADD = $(IRTSP_LIBS) -lBasicUsageEnvironment -lUsageEnvironment -lgroupsock -lliveMedia
 
+SUBDIRS = \
+	config
