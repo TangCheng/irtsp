@@ -20,7 +20,7 @@ AC_PROG_CXX
 
 
 
-PKG_CHECK_MODULES(IRTSP, [json-glib-1.0 gobject-2.0 libipcam_base-0.1.0 ])
+PKG_CHECK_MODULES(IRTSP, [shm_queue-0.1.00 zlib json-glib-1.0 glib-2.0 gobject-2.0 gmodule-2.0 libzmq yaml-0.1 libczmq libipcam_base-0.1.0])
 
 
 

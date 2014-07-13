@@ -116,8 +116,10 @@ static void ipcam_irtsp_class_init(IpcamIRtspClass *klass)
 static void
 ipcam_irtsp_before_start(IpcamIRtsp *irtsp)
 {
+    IpcamIRtspPrivate *priv = ipcam_irtsp_get_instance_private(irtsp);
     ipcam_irtsp_request_users(irtsp);
     ipcam_irtsp_request_rtsp_port(irtsp);
+    launch_irtsp_server(priv->rtsp_port, NULL);
 }
 
 static void
