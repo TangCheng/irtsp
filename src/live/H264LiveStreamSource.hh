@@ -28,8 +28,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include <FramedSource.hh>
 #endif
 
-#include <shm_queue.h>
-#include <shm_rr_queue.h>
+#include <zmq.hpp>
 
 // The following class can be used to define specific encoder parameters
 /*
@@ -60,10 +59,12 @@ private:
 
 private:
     static void deliverFrame0(void* clientData, int mask);
-    static void deliverFrame0(void* clientData);
     void deliverFrame();
-    IpcamShmRRQueue *mVideoPool;
-    TaskToken mTask;
+    //IpcamShmRRQueue *mVideoPool;
+    zmq::context_t mContext;
+    zmq::socket_t mSubscriber;
+    char *mBuffer;
+    int mFD;
 };
 
 #endif

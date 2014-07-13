@@ -30,8 +30,11 @@ H264LiveStreamSource::createNew(UsageEnvironment& env)
 }
 
 H264LiveStreamSource::H264LiveStreamSource(UsageEnvironment& env)
-    : FramedSource(env)
+    : FramedSource(env),
+     mContext(1),
+     mSubscriber(mContext, ZMQ_SUB)
 {
+    /*
     mVideoPool = (IpcamShmRRQueue*)g_object_new(IPCAM_SHM_RR_QUEUE_TYPE,
                                                 "block-num", 10,
                                                 "pool-size", 1024 * 1024,
@@ -39,14 +42,26 @@ H264LiveStreamSource::H264LiveStreamSource(UsageEnvironment& env)
                                                 "priority", WRITE_PRIO,
                                                 NULL);
     ipcam_shm_rr_queue_open(mVideoPool, (gchar *)"/data/configuration.sqlite3", 0);
-    envir().taskScheduler().rescheduleDelayedTask(mTask, 0, deliverFrame0, this);
+    */
+    mBuffer = new char[1024 * 30];
+    mSubscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+    mSubscriber.connect("ipc:///tmp/livestream");
+    size_t fdSize = sizeof(mFD);
+    mSubscriber.getsockopt(ZMQ_FD, &mFD, &fdSize);
+    envir().taskScheduler().turnOnBackgroundReadHandling(mFD,
+                                                         (TaskScheduler::BackgroundHandlerProc*)&deliverFrame0,
+                                                         this);
 }
 
 H264LiveStreamSource::~H264LiveStreamSource() {
     // Any instance-specific 'destruction' (i.e., resetting) of the device would be done here:
     //%%% TO BE WRITTEN %%%
-    ipcam_shm_rr_queue_close(mVideoPool);
-  
+    //ipcam_shm_rr_queue_close(mVideoPool);
+    envir().taskScheduler().turnOffBackgroundReadHandling(mFD);
+    mSubscriber.setsockopt(ZMQ_UNSUBSCRIBE, NULL, 0);
+    mSubscriber.close();
+    delete mBuffer;
+         
     // Any global 'destruction' (i.e., resetting) of the device would be done here:
     //%%% TO BE WRITTEN %%%
     // Reclaim our 'event trigger'
@@ -61,8 +76,11 @@ void H264LiveStreamSource::doGetNextFrame() {
           return;
      }
 
+     int flags = 0;
+     size_t flags_len = sizeof(flags);
+     mSubscriber.getsockopt(ZMQ_EVENTS, &flags, &flags_len);
      // If a new frame of data is immediately available to be delivered, then do this now:
-     if (0 /* a new frame of data is immediately available to be delivered*/ /*%%% TO BE WRITTEN %%%*/) {
+     if (flags & ZMQ_POLLIN /* a new frame of data is immediately available to be delivered*/ /*%%% TO BE WRITTEN %%%*/) {
           deliverFrame();
      }
 
@@ -75,25 +93,11 @@ void H264LiveStreamSource::deliverFrame0(void* clientData, int mask) {
           ((H264LiveStreamSource*)clientData)->deliverFrame();
 }
 
-void H264LiveStreamSource::deliverFrame0(void* clientData) {
-     if (clientData)
-          ((H264LiveStreamSource*)clientData)->deliverFrame();
-}
-
-/*
-#define MIN(X, Y)                               \
-     ({                                         \
-          __typeof__ (X) __x = (X);             \
-          __typeof__ (Y) __y = (Y);             \
-          (__x < __y) ? __x : __y;              \
-     })
-*/
-
 typedef struct _VideoStreamData
 {
-     guint32 len;
+     unsigned int len;
      struct timeval pts;
-     gchar data[0];
+     char data[0];
 } VideoStreamData;
 
 void H264LiveStreamSource::deliverFrame() {
@@ -123,16 +127,22 @@ void H264LiveStreamSource::deliverFrame() {
 
      unsigned newFrameSize = 0; //%%% TO BE WRITTEN %%%
      int ret;
-     char *buf = new char[1024 * 1024];
-     ret = ipcam_shm_rr_queue_read(mVideoPool, buf, 1024 * 1024);
-     printf("read data %d\n", ret);
+     char *p;
+     //ret = ipcam_shm_rr_queue_read(mVideoPool, buf, 1024 * 1024);
+     ret = mSubscriber.recv(mBuffer, 1024 * 30, ZMQ_DONTWAIT);
      if (ret > 0)
      {
-          VideoStreamData *videoData = (VideoStreamData *)buf;
+          VideoStreamData *videoData = (VideoStreamData *)mBuffer;
           newFrameSize = videoData->len;
           //gettimeofday(&fPresentationTime, NULL); // If you have a more accurate time - e.g., from an encoder - then use that instead.
           fPresentationTime.tv_sec = videoData->pts.tv_sec;
           fPresentationTime.tv_usec = videoData->pts.tv_usec;
+          p = videoData->data;
+          if (p[0] == 0x00 && p[1] == 0x00 && p[2] == 0x00 && p[3] == 0x01)
+          {
+               newFrameSize -= 4;
+               p += 4;
+          }
           // Deliver the data here:
           if (newFrameSize > fMaxSize)
           {
@@ -143,16 +153,13 @@ void H264LiveStreamSource::deliverFrame() {
                fFrameSize = newFrameSize;
           }
           // If the device is *not* a 'live source' (e.g., it comes instead from a file or buffer), then set "fDurationInMicroseconds" here.
-          memcpy(fTo, videoData->data, fFrameSize);
+          memcpy(fTo, p, fFrameSize);
      }
-
-     delete[] buf;
 
      // After delivering the data, inform the reader that it is now available:
      if (newFrameSize > 0)
           FramedSource::afterGetting(this);
-
-     envir().taskScheduler().rescheduleDelayedTask(mTask, 30, deliverFrame0, this);
+          
 }
 
 // The following code would be called to signal that a new frame of data has become available.

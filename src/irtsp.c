@@ -16,6 +16,8 @@ typedef struct _IpcamIRtspPrivate
     gboolean param_changed;
     guint rtsp_port;
     GHashTable *users_hash;
+    GThread *live555_thread;
+    gchar watch_variable;
 } IpcamIRtspPrivate;
 
 G_DEFINE_TYPE_WITH_PRIVATE(IpcamIRtsp, ipcam_irtsp, IPCAM_BASE_APP_TYPE)
@@ -33,6 +35,8 @@ static void ipcam_irtsp_set_users(IpcamIRtsp *irtsp, JsonNode *body);
 static void ipcam_irtsp_finalize(GObject *self)
 {
     IpcamIRtspPrivate *priv = ipcam_irtsp_get_instance_private(IPCAM_IRTSP(self));
+    priv->watch_variable = 1;
+    g_thread_join(priv->live555_thread);
     g_hash_table_destroy(priv->users_hash);
     G_OBJECT_CLASS(ipcam_irtsp_parent_class)->finalize(self);
 }
@@ -48,8 +52,9 @@ ipcam_irtsp_init(IpcamIRtsp *self)
 {
 	IpcamIRtspPrivate *priv = ipcam_irtsp_get_instance_private(self);
     priv->param_changed = FALSE;
-    priv->rtsp_port = 554;
+    priv->rtsp_port = 8554;
     priv->users_hash = g_hash_table_new_full(g_str_hash, g_str_equal, destroy_notify, destroy_notify);
+    priv->watch_variable = 0;
 }
 /*
 static void ipcam_irtsp_get_property(GObject    *object,
@@ -94,8 +99,10 @@ static void ipcam_irtsp_set_property(GObject      *object,
 */
 static void ipcam_irtsp_class_init(IpcamIRtspClass *klass)
 {
-/*
+
     GObjectClass *object_class = G_OBJECT_CLASS(klass);
+    object_class->finalize = &ipcam_irtsp_finalize;
+ /*
     object_class->get_property = &ipcam_irtsp_get_property;
     object_class->set_property = &ipcam_irtsp_set_property;
 
@@ -113,13 +120,21 @@ static void ipcam_irtsp_class_init(IpcamIRtspClass *klass)
     base_service_class->in_loop = &ipcam_irtsp_in_loop;
 }
 
+static gpointer live555_thread_proc(gpointer data)
+{
+    IpcamIRtspPrivate *priv = (IpcamIRtspPrivate *)data;
+    launch_irtsp_server(priv->rtsp_port, &priv->watch_variable);
+    g_thread_exit(0);
+    return NULL;
+}
+
 static void
 ipcam_irtsp_before_start(IpcamIRtsp *irtsp)
 {
     IpcamIRtspPrivate *priv = ipcam_irtsp_get_instance_private(irtsp);
     ipcam_irtsp_request_users(irtsp);
     ipcam_irtsp_request_rtsp_port(irtsp);
-    launch_irtsp_server(priv->rtsp_port, NULL);
+    priv->live555_thread = g_thread_new("live555", live555_thread_proc, priv);
 }
 
 static void
@@ -141,7 +156,7 @@ message_handler(GObject *obj, IpcamMessage* msg, gboolean timeout)
     if (!timeout && msg)
     {
         gchar *str = ipcam_message_to_string(msg);
-        g_printf("result=\n%s\n", str);
+        g_print("result=\n%s\n", str);
         g_free(str);
 
         gchar *action;
@@ -160,7 +175,7 @@ message_handler(GObject *obj, IpcamMessage* msg, gboolean timeout)
         }
         else
         {
-            g_printf("unknown action: %s\n", action);
+            g_print("unknown action: %s\n", action);
         }
         g_free(action);
     }
@@ -225,7 +240,7 @@ ipcam_irtsp_set_rtsp_port(IpcamIRtsp *irtsp, JsonNode *body)
     JsonObject *items = json_object_get_object_member(json_node_get_object(body), "items");
     JsonObject *server_port = json_object_get_object_member(items, "server_port");
     const guint rtsp_port = json_object_get_int_member(server_port, "rtsp");
-    g_printf("rtsp_port = %u\n", rtsp_port);
+    g_print("rtsp_port = %u\n", rtsp_port);
     IpcamIRtspPrivate *priv = ipcam_irtsp_get_instance_private(irtsp);
     priv->param_changed = (priv->rtsp_port == rtsp_port);
     priv->rtsp_port = rtsp_port;
@@ -236,7 +251,7 @@ proc_each_user(JsonArray *array, guint index_, JsonNode *element_node, gpointer 
 {
     const gchar *username = json_object_get_string_member(json_node_get_object(element_node), "username");
     const gchar *password = json_object_get_string_member(json_node_get_object(element_node), "password");
-    g_printf("username = %s\npassword = %s\n", username, password);
+    g_print("username = %s\npassword = %s\n", username, password);
     IpcamIRtspPrivate *priv = ipcam_irtsp_get_instance_private(IPCAM_IRTSP(user_data));
     g_hash_table_insert(priv->users_hash, g_strdup(username), g_strdup(password));
 }

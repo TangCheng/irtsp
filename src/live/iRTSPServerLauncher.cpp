@@ -7,7 +7,7 @@ extern "C"
 
 void launch_irtsp_server(unsigned int port, char *watchVariable)
 {
-    IRTSPServer *server = new IRTSPServer();
+    IRTSPServer *server = new IRTSPServer(True);
     server->startServer(port, watchVariable);
 }
 
