@@ -20,7 +20,7 @@
 // NOTE: Sections of this code labeled "%%% TO BE WRITTEN %%%" are incomplete, and need to be written by the programmer
 // (depending on the features of the particular device).
 // Implementation
-
+#include <MediaSink.hh>
 #include "H264LiveStreamSource.hh"
 
 H264LiveStreamSource*
@@ -34,16 +34,7 @@ H264LiveStreamSource::H264LiveStreamSource(UsageEnvironment& env)
      mContext(1),
      mSubscriber(mContext, ZMQ_SUB)
 {
-    /*
-    mVideoPool = (IpcamShmRRQueue*)g_object_new(IPCAM_SHM_RR_QUEUE_TYPE,
-                                                "block-num", 10,
-                                                "pool-size", 1024 * 1024,
-                                                "mode", OP_MODE_READ,
-                                                "priority", WRITE_PRIO,
-                                                NULL);
-    ipcam_shm_rr_queue_open(mVideoPool, (gchar *)"/data/configuration.sqlite3", 0);
-    */
-    mBuffer = new char[1024 * 30];
+    mBuffer = new char[OutPacketBuffer::maxSize];
     mSubscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
     mSubscriber.connect("ipc:///tmp/livestream");
     size_t fdSize = sizeof(mFD);
@@ -56,12 +47,11 @@ H264LiveStreamSource::H264LiveStreamSource(UsageEnvironment& env)
 H264LiveStreamSource::~H264LiveStreamSource() {
     // Any instance-specific 'destruction' (i.e., resetting) of the device would be done here:
     //%%% TO BE WRITTEN %%%
-    //ipcam_shm_rr_queue_close(mVideoPool);
     envir().taskScheduler().turnOffBackgroundReadHandling(mFD);
     mSubscriber.setsockopt(ZMQ_UNSUBSCRIBE, NULL, 0);
     mSubscriber.close();
     delete mBuffer;
-         
+    
     // Any global 'destruction' (i.e., resetting) of the device would be done here:
     //%%% TO BE WRITTEN %%%
     // Reclaim our 'event trigger'
@@ -128,8 +118,7 @@ void H264LiveStreamSource::deliverFrame() {
      unsigned newFrameSize = 0; //%%% TO BE WRITTEN %%%
      int ret;
      char *p;
-     //ret = ipcam_shm_rr_queue_read(mVideoPool, buf, 1024 * 1024);
-     ret = mSubscriber.recv(mBuffer, 1024 * 30, ZMQ_DONTWAIT);
+     ret = mSubscriber.recv(mBuffer, OutPacketBuffer::maxSize, ZMQ_DONTWAIT);
      if (ret > 0)
      {
           VideoStreamData *videoData = (VideoStreamData *)mBuffer;

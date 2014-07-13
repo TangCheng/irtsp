@@ -41,7 +41,6 @@ class H264LiveStreamSource: public FramedSource
 {
 public:
     static H264LiveStreamSource* createNew(UsageEnvironment& env);
-
 public:
     // Note that this is defined here to be a static class variable, because this code is intended to illustrate how to
     // encapsulate a *single* device - not a set of devices.
