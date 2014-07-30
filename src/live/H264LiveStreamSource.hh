@@ -28,7 +28,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #include <FramedSource.hh>
 #endif
 
-#include <zmq.hpp>
+#include "cppzmq/zmq.hpp"
 
 // The following class can be used to define specific encoder parameters
 /*
