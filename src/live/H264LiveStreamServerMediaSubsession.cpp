@@ -99,7 +99,7 @@ char const* H264LiveStreamServerMediaSubsession::getAuxSDPLine(RTPSink* rtpSink,
 }
 
 FramedSource* H264LiveStreamServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/, unsigned& estBitrate) {
-  estBitrate = 500; // kbps, estimate
+  estBitrate = 5000; // kbps, estimate
 
   // Create the video source:
   H264LiveStreamSource* liveSource = H264LiveStreamSource::createNew(envir());

@@ -23,7 +23,7 @@ private:
     // change the following "False" to "True":
     Boolean m_iFramesOnly;
 public:
-    IRTSPServer(Boolean reuseFirstSource = False, Boolean iFramesOnly = False);
+    IRTSPServer(Boolean reuseFirstSource = True, Boolean iFramesOnly = False);
     virtual ~IRTSPServer();
     void setAuthUser();
     void startServer(unsigned int port, char *watchVariable);

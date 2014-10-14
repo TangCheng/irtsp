@@ -40,8 +40,7 @@ H264LiveStreamSource::H264LiveStreamSource(UsageEnvironment& env)
     size_t fdSize = sizeof(mFD);
     mSubscriber.getsockopt(ZMQ_FD, &mFD, &fdSize);
     envir().taskScheduler().turnOnBackgroundReadHandling(mFD,
-                                                         (TaskScheduler::BackgroundHandlerProc*)&deliverFrame0,
-                                                         this);
+        (TaskScheduler::BackgroundHandlerProc*)&deliverFrame0, this);
 }
 
 H264LiveStreamSource::~H264LiveStreamSource() {
@@ -50,7 +49,7 @@ H264LiveStreamSource::~H264LiveStreamSource() {
     envir().taskScheduler().turnOffBackgroundReadHandling(mFD);
     mSubscriber.setsockopt(ZMQ_UNSUBSCRIBE, NULL, 0);
     mSubscriber.close();
-    delete mBuffer;
+    delete[] mBuffer;
     
     // Any global 'destruction' (i.e., resetting) of the device would be done here:
     //%%% TO BE WRITTEN %%%
@@ -87,7 +86,7 @@ typedef struct _VideoStreamData
 {
      unsigned int len;
      struct timeval pts;
-     char data[0];
+     //char data[0];
 } VideoStreamData;
 
 void H264LiveStreamSource::deliverFrame() {
@@ -116,22 +115,29 @@ void H264LiveStreamSource::deliverFrame() {
      if (!isCurrentlyAwaitingData()) return; // we're not ready for the data yet
 
      unsigned newFrameSize = 0; //%%% TO BE WRITTEN %%%
+     int bRecvMore = false;
+     size_t len = sizeof(bRecvMore);
+     int pos = 0;
      int ret;
      char *p;
-     ret = mSubscriber.recv(mBuffer, OutPacketBuffer::maxSize, ZMQ_DONTWAIT);
-     if (ret > 0)
+     do
+     {
+         ret = mSubscriber.recv(mBuffer + pos, OutPacketBuffer::maxSize, ZMQ_DONTWAIT);
+         if (ret > 0)
+         {
+              pos += ret;
+              mSubscriber.getsockopt(ZMQ_RCVMORE, &bRecvMore, &len);
+         }
+     } while (bRecvMore && ret > 0);         
+
+     if (pos > 0)
      {
           VideoStreamData *videoData = (VideoStreamData *)mBuffer;
           newFrameSize = videoData->len;
           //gettimeofday(&fPresentationTime, NULL); // If you have a more accurate time - e.g., from an encoder - then use that instead.
           fPresentationTime.tv_sec = videoData->pts.tv_sec;
           fPresentationTime.tv_usec = videoData->pts.tv_usec;
-          p = videoData->data;
-          if (p[0] == 0x00 && p[1] == 0x00 && p[2] == 0x00 && p[3] == 0x01)
-          {
-               newFrameSize -= 4;
-               p += 4;
-          }
+
           // Deliver the data here:
           if (newFrameSize > fMaxSize)
           {
@@ -142,6 +148,7 @@ void H264LiveStreamSource::deliverFrame() {
                fFrameSize = newFrameSize;
           }
           // If the device is *not* a 'live source' (e.g., it comes instead from a file or buffer), then set "fDurationInMicroseconds" here.
+          p = mBuffer + sizeof(VideoStreamData);
           memcpy(fTo, p, fFrameSize);
      }
 

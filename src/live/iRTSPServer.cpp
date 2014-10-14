@@ -36,7 +36,7 @@ void IRTSPServer::setAuthUser()
 
 void IRTSPServer::startServer(unsigned int port, char *watchVariable)
 {
-    OutPacketBuffer::increaseMaxSizeTo(100000);
+    OutPacketBuffer::increaseMaxSizeTo(1024 * 1024);
     m_rtspServer = RTSPServer::createNew(*m_env, port, m_authDB);
     if (m_rtspServer == NULL) {
         *m_env << "Failed to create RTSP server: " << m_env->getResultMsg() << "\n";
